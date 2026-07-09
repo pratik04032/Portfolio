@@ -169,7 +169,7 @@ export default function App() {
                 Available for product engineering and frontend roles
               </div>
               <h1 className="text-balance text-5xl font-semibold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
-                Your Name
+                Pratik Kumar Jena
               </h1>
               <p className="mt-4 text-xl font-medium text-primary sm:text-2xl">
                 Full-Stack Developer
@@ -357,7 +357,7 @@ export default function App() {
       </main>
       
       <footer className="border-t border-border bg-background py-8 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} Your Name. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Pratik Kumar Jena. All rights reserved.</p>
       </footer>
     </div>
   );
