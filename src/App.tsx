@@ -16,7 +16,8 @@ import {
   Linkedin,
   Twitter,
   MessageCircle,
-  Award
+  Award,
+  ExternalLink
 } from 'lucide-react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './lib/auth';
 import { createInterviewEvent, logInterviewToSheet } from './lib/schedule';
@@ -442,10 +443,15 @@ export default function App() {
                             <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{project.language}</span>
                           )}
                         </div>
-                        <div className="mt-auto pt-5">
+                        <div className="mt-auto pt-5 flex items-center gap-4">
                           <a href={project.html_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                             <Github size={16} /> Repository
                           </a>
+                          {project.homepage && (
+                            <a href={project.homepage} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                              <ExternalLink size={16} /> Live Demo
+                            </a>
+                          )}
                         </div>
                       </div>
                     </article>
@@ -653,11 +659,11 @@ export default function App() {
                 <Linkedin size={20} />
                 <span className="sr-only">LinkedIn</span>
               </a>
-              <a href="https://github.com/pratikkumarjena" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="GitHub">
+              <a href="https://github.com/pratik04032" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="GitHub">
                 <Github size={20} />
                 <span className="sr-only">GitHub</span>
               </a>
-              <a href="https://twitter.com/pratikkumarjena" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="Twitter">
+              <a href="https://x.com/PratikK51368036" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="Twitter">
                 <Twitter size={20} />
                 <span className="sr-only">Twitter</span>
               </a>
