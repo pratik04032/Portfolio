@@ -261,9 +261,6 @@ export default function App() {
             <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#certificates">
               Certificates
             </a>
-            <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#resume">
-              Resume
-            </a>
             <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#contact">
               Contact
             </a>
@@ -278,9 +275,6 @@ export default function App() {
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <a href="#resume" className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90">
-              <Download size={16} /> Resume
-            </a>
           </nav>
         </div>
       </header>
@@ -482,19 +476,25 @@ export default function App() {
                     'from-emerald-500/20 to-teal-500/20'
                   ];
                   return (
-                    <article key={project.name} className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
-                      <div className={`h-40 w-full bg-gradient-to-br ${colors[index % colors.length]} flex items-center justify-center border-b border-border`}>
+                    <article 
+                      key={project.name} 
+                      className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1"
+                      title={project.updated_at ? `Last updated: ${new Date(project.updated_at).toLocaleDateString()}` : undefined}
+                    >
+                      <div className={`relative h-40 w-full bg-gradient-to-br ${colors[index % colors.length]} flex items-center justify-center border-b border-border`}>
                         <Code2 className="text-foreground/50 transition-opacity group-hover:opacity-100" size={48} />
+                        {project.language && (
+                          <div className="absolute top-3 right-3">
+                            <span className="rounded-md bg-background/60 backdrop-blur-md px-2.5 py-1 text-xs font-bold text-foreground shadow-sm border border-border/50">
+                              {project.language}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="p-5 flex flex-col flex-grow">
-                        <h3 className="text-xl font-semibold break-words line-clamp-2" title={project.name.replace(/-/g, ' ')}>{project.name.replace(/-/g, ' ')}</h3>
+                        <h3 className="text-xl font-semibold break-words line-clamp-2">{project.name.replace(/-/g, ' ')}</h3>
                         <p className="mt-3 text-sm leading-6 text-muted-foreground line-clamp-3" title={project.description || 'No description provided.'}>{project.description || 'No description provided.'}</p>
-                        <div className="mt-5 flex flex-wrap gap-2">
-                          {project.language && (
-                            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{project.language}</span>
-                          )}
-                        </div>
-                        <div className="mt-auto pt-5 flex items-center gap-4">
+                        <div className="mt-auto pt-5 flex flex-wrap items-center gap-4">
                           <a href={project.html_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
                             <Github size={16} /> Repository
                           </a>
@@ -560,7 +560,7 @@ export default function App() {
         </section>
 
         <section className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8" id="contact">
-          <h2 className="text-3xl font-semibold tracking-tight">Hiring managers can review the work, download the resume, and book time from one place.</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">Hiring managers can review the work and book time from one place.</h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Use the interview link for availability, or send role details through the contact form below for a direct response.</p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row mb-12">
             <button onClick={() => setShowScheduleModal(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90">
@@ -706,7 +706,7 @@ export default function App() {
               &copy; {new Date().getFullYear()} Pratik Kumar Jena. All rights reserved.
             </p>
             <div className="flex items-center gap-4">
-              <a href="https://linkedin.com/in/pratikkumarjena" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="LinkedIn">
+              <a href="https://linkedin.com/in/pratik-kumar-jena-1823b3242/" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="LinkedIn">
                 <Linkedin size={20} />
                 <span className="sr-only">LinkedIn</span>
               </a>
@@ -718,7 +718,7 @@ export default function App() {
                 <Twitter size={20} />
                 <span className="sr-only">Twitter</span>
               </a>
-              <a href="https://wa.me/yourwhatsappnumber" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="WhatsApp">
+              <a href="https://wa.me/918456053237" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="WhatsApp">
                 <MessageCircle size={20} />
                 <span className="sr-only">WhatsApp</span>
               </a>
