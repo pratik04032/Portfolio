@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Code2,
   Moon,
@@ -10,12 +10,22 @@ import {
   Globe,
   CheckCircle2,
   ArrowRight,
-  Loader2
+  Loader2,
+  LogOut
 } from 'lucide-react';
+import { initAuth, googleSignIn, getAccessToken, logout } from './lib/auth';
+import { sendEmail } from './lib/gmail';
+import { User } from 'firebase/auth';
 
 export default function App() {
   const [isDark, setIsDark] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [needsAuth, setNeedsAuth] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (isDark) {
@@ -24,6 +34,80 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [isDark]);
+
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, token) => {
+        setToken(token);
+        setUser(user);
+        setNeedsAuth(false);
+      },
+      () => {
+        setToken(null);
+        setUser(null);
+        setNeedsAuth(true);
+      }
+    );
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      const result = await googleSignIn();
+      if (result) {
+        setToken(result.accessToken);
+        setUser(result.user);
+        setNeedsAuth(false);
+      }
+    } catch (err) {
+      console.error('Login failed:', err);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+  
+  const handleLogout = async () => {
+    await logout();
+    setNeedsAuth(true);
+    setUser(null);
+    setToken(null);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault(); 
+    if (!token) {
+      alert('Please sign in first to send a message.');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    const formData = new FormData(e.currentTarget);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const message = formData.get('message') as string;
+    
+    try {
+      await sendEmail(
+        token,
+        'pratikkumarjena04@gmail.com', // Recipient
+        name,
+        email,
+        message
+      );
+      alert('Message sent successfully!');
+      if (formRef.current) formRef.current.reset();
+    } catch (error) {
+      console.error(error);
+      alert('Failed to send message. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
@@ -200,41 +284,62 @@ export default function App() {
           </div>
 
           <form 
-            onSubmit={(e) => { 
-              e.preventDefault(); 
-              setIsSubmitting(true);
-              setTimeout(() => {
-                alert('Message sent successfully!');
-                setIsSubmitting(false);
-              }, 1500);
-            }} 
+            ref={formRef}
+            onSubmit={handleFormSubmit} 
             className="text-left bg-card border border-border rounded-xl p-6 sm:p-8 shadow-sm"
           >
             <div className="grid gap-6">
               <div className="grid gap-2">
                 <label htmlFor="name" className="text-sm font-medium">Name</label>
-                <input id="name" disabled={isSubmitting} required type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="Jane Doe" />
+                <input id="name" name="name" disabled={isSubmitting || needsAuth} required type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="Jane Doe" />
               </div>
               <div className="grid gap-2">
                 <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <input id="email" disabled={isSubmitting} required type="email" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="jane@example.com" />
+                <input id="email" name="email" disabled={isSubmitting || needsAuth} required type="email" defaultValue={user?.email || ''} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="jane@example.com" />
               </div>
               <div className="grid gap-2">
                 <label htmlFor="message" className="text-sm font-medium">Message</label>
-                <textarea id="message" disabled={isSubmitting} required rows={4} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50" placeholder="How can I help you?"></textarea>
+                <textarea id="message" name="message" disabled={isSubmitting || needsAuth} required rows={4} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50" placeholder="How can I help you?"></textarea>
               </div>
-              <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 mt-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                {isSubmitting ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    Send Message <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
+              {needsAuth ? (
+                <button type="button" onClick={handleLogin} disabled={isLoggingIn} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary border border-border text-foreground px-5 py-3 font-semibold transition hover:bg-secondary/80 mt-2 disabled:opacity-50">
+                  {isLoggingIn ? (
+                    <><Loader2 size={18} className="animate-spin" /> Connecting...</>
+                  ) : (
+                    <>
+                      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                        <path fill="none" d="M0 0h48v48H0z"></path>
+                      </svg>
+                      Sign in to Send
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="mt-2 flex flex-col gap-3">
+                  <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        Send Message <ArrowRight size={18} />
+                      </>
+                    )}
+                  </button>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                    <span>Sending as: <span className="font-medium text-foreground">{user?.email}</span></span>
+                    <button type="button" onClick={handleLogout} className="inline-flex items-center gap-1 hover:text-foreground">
+                      <LogOut size={12} /> Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </section>
