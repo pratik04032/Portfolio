@@ -1,3 +1,25 @@
+export const createMeetSpace = async (accessToken: string) => {
+  const response = await fetch('https://meet.googleapis.com/v2/spaces', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      config: {
+        accessType: 'OPEN'
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(`Failed to create Meet space: ${errorData.error?.message || response.statusText}`);
+  }
+
+  return response.json();
+};
+
 export const createInterviewEvent = async (accessToken: string, summary: string, startDateTime: string, endDateTime: string, attendeeEmail: string) => {
   const event = {
     summary,

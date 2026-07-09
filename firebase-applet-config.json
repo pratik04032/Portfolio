@@ -3,6 +3,7 @@
   "appId": "1:802502011429:web:bbcd4310d2516af00e2dcc",
   "apiKey": "AIzaSyCQPmFZ8DfhZ906ugv5bEs61Ukdq12QIQs",
   "authDomain": "focal-messenger-2tpfc.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-41ada036-7733-4481-a931-f60f244badb8",
   "storageBucket": "focal-messenger-2tpfc.firebasestorage.app",
   "messagingSenderId": "802502011429",
   "measurementId": "",

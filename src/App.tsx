@@ -12,14 +12,15 @@ import {
   ArrowRight,
   Loader2,
   LogOut,
-  Upload,
-  FileText,
-  Eye,
-  X
+  X,
+  Linkedin,
+  Twitter,
+  MessageCircle,
+  Award
 } from 'lucide-react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './lib/auth';
-import { uploadFileToDrive } from './lib/drive';
 import { createInterviewEvent, logInterviewToSheet } from './lib/schedule';
+import { submitContactMessage } from './lib/messages';
 import { User } from 'firebase/auth';
 
 export default function App() {
@@ -31,18 +32,13 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   const [messageText, setMessageText] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
   const [formErrors, setFormErrors] = useState<{name?: string, email?: string, message?: string}>({});
-  
-  const [uploadedFile, setUploadedFile] = useState<{name: string, type: string, url: string} | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
   
   const formRef = useRef<HTMLFormElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isDark) {
@@ -71,6 +67,15 @@ export default function App() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (user && formRef.current) {
+      const nameInput = formRef.current.elements.namedItem('name') as HTMLInputElement;
+      const emailInput = formRef.current.elements.namedItem('email') as HTMLInputElement;
+      if (nameInput && !nameInput.value) nameInput.value = user.displayName || '';
+      if (emailInput && !emailInput.value) emailInput.value = user.email || '';
+    }
+  }, [user]);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
@@ -121,46 +126,16 @@ export default function App() {
     setIsSubmitting(true);
     
     try {
-      // Open default mail client
-      const subject = encodeURIComponent(`Portfolio Contact from ${name}`);
-      const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`);
-      window.location.href = `mailto:hello@example.com?subject=${subject}&body=${body}`;
+      await submitContactMessage(name, email, message);
       
       if (formRef.current) formRef.current.reset();
       setMessageText('');
-      alert('Mail client opened to send your message!');
+      alert('Your message has been sent successfully!');
     } catch (error) {
       console.error(error);
       alert('Failed to prepare message.');
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!token) {
-      alert('Please sign in first to upload a resume.');
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      await uploadFileToDrive(token, file);
-      alert('Resume uploaded successfully to Google Drive!');
-      setUploadedFile({
-        name: file.name,
-        type: file.type,
-        url: URL.createObjectURL(file)
-      });
-    } catch (error) {
-      console.error(error);
-      alert('Failed to upload resume. Please try again later.');
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -232,8 +207,14 @@ export default function App() {
             <a className="rounded-md px-3 py-2 text-sm font-medium text-foreground bg-secondary transition hover:bg-secondary hover:text-foreground" href="/">
               Overview
             </a>
+            <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#experience">
+              Experience
+            </a>
             <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#projects">
               Projects
+            </a>
+            <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#certificates">
+              Certificates
             </a>
             <a className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-secondary hover:text-foreground" href="#resume">
               Resume
@@ -281,45 +262,6 @@ export default function App() {
                 <button onClick={() => setShowScheduleModal(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
                   <CalendarCheck size={18} /> Schedule an interview
                 </button>
-                
-                {needsAuth ? (
-                  <button onClick={handleLogin} disabled={isLoggingIn} className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:bg-secondary">
-                    {isLoggingIn ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                    Sign in to Upload Resume
-                  </button>
-                ) : (
-                  <>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleFileUpload} 
-                      className="hidden" 
-                      accept=".pdf,.doc,.docx"
-                    />
-                    <button 
-                      onClick={() => fileInputRef.current?.click()} 
-                      disabled={isUploading}
-                      className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:bg-secondary disabled:opacity-50"
-                    >
-                      {isUploading ? (
-                        <><Loader2 size={18} className="animate-spin" /> Uploading...</>
-                      ) : (
-                        <><Upload size={18} /> Upload Resume to Drive</>
-                      )}
-                    </button>
-                    {uploadedFile && (
-                      <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
-                        <FileText size={16} className="text-primary" />
-                        <span className="max-w-[150px] truncate font-medium" title={uploadedFile.name}>{uploadedFile.name}</span>
-                        {uploadedFile.type === 'application/pdf' && (
-                          <button onClick={() => setShowPreview(true)} className="ml-2 inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" title="Preview Resume">
-                            <Eye size={16} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
               <div className="mt-8 flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:hello@example.com">
@@ -366,6 +308,60 @@ export default function App() {
                   <span className="font-medium">{skill}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-border bg-background" id="experience">
+          <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+            <div className="mb-10">
+              <p className="text-sm font-semibold uppercase tracking-[.18em] text-primary">Experience</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight">Work history.</h2>
+            </div>
+            
+            <div className="space-y-12">
+              <div className="relative pl-8 sm:pl-10">
+                <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background ring-4 ring-background"></div>
+                <div className="absolute bottom-[-3rem] left-[5px] top-6 w-[2px] bg-border"></div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                  <h3 className="text-xl font-semibold">Senior Frontend Developer</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">2022 - Present</span>
+                </div>
+                <p className="text-lg font-medium text-foreground/80 mb-4">Tech Innovators Inc.</p>
+                <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
+                  <li>Led the frontend development of a high-traffic SaaS platform using React and TypeScript.</li>
+                  <li>Improved application performance by 40% through code splitting and lazy loading.</li>
+                  <li>Mentored junior developers and established code review best practices.</li>
+                </ul>
+              </div>
+              
+              <div className="relative pl-8 sm:pl-10">
+                <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background ring-4 ring-background"></div>
+                <div className="absolute bottom-[-3rem] left-[5px] top-6 w-[2px] bg-border"></div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                  <h3 className="text-xl font-semibold">Web Developer</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">2019 - 2022</span>
+                </div>
+                <p className="text-lg font-medium text-foreground/80 mb-4">Creative Solutions Agency</p>
+                <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
+                  <li>Developed responsive and accessible websites for diverse clients.</li>
+                  <li>Integrated various third-party APIs and payment gateways.</li>
+                  <li>Collaborated closely with designers to ensure pixel-perfect implementations.</li>
+                </ul>
+              </div>
+              
+              <div className="relative pl-8 sm:pl-10">
+                <div className="absolute left-[2px] top-2 h-2 w-2 rounded-full border-2 border-muted-foreground bg-background ring-4 ring-background"></div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                  <h3 className="text-xl font-semibold text-muted-foreground">Junior Developer</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">2018 - 2019</span>
+                </div>
+                <p className="text-lg font-medium text-foreground/60 mb-4">Startup Labs</p>
+                <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
+                  <li>Assisted in building internal tools and dashboards.</li>
+                  <li>Participated in daily stand-ups and sprint planning.</li>
+                </ul>
+              </div>
             </div>
           </div>
         </section>
@@ -427,6 +423,52 @@ export default function App() {
           </div>
         </section>
 
+        <section className="bg-background py-16" id="certificates">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[.18em] text-primary">Certifications</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight">Professional achievements.</h2>
+              </div>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  title: 'AWS Certified Solutions Architect',
+                  issuer: 'Amazon Web Services',
+                  date: '2025',
+                },
+                {
+                  title: 'Google Cloud Professional Developer',
+                  issuer: 'Google Cloud',
+                  date: '2024',
+                },
+                {
+                  title: 'Meta Front-End Developer',
+                  issuer: 'Coursera',
+                  date: '2023',
+                }
+              ].map((cert) => (
+                <article key={cert.title} className="group flex flex-col justify-between overflow-hidden rounded-lg border border-border bg-card p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
+                  <div>
+                    <div className="mb-4 inline-flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Award size={20} />
+                    </div>
+                    <h3 className="text-lg font-semibold">{cert.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{cert.issuer}</p>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                    <span className="text-sm font-medium text-muted-foreground">{cert.date}</span>
+                    <a href="#" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                      Verify <ArrowRight size={14} />
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 lg:px-8" id="contact">
           <h2 className="text-3xl font-semibold tracking-tight">Hiring managers can review the work, download the resume, and book time from one place.</h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Use the interview link for availability, or send role details through the contact form below for a direct response.</p>
@@ -444,7 +486,7 @@ export default function App() {
             <div className="grid gap-6">
               <div className="grid gap-2">
                 <label htmlFor="name" className="text-sm font-medium">Name</label>
-                <input id="name" name="name" disabled={isSubmitting} required type="text" className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="Jane Doe" />
+                <input id="name" name="name" disabled={isSubmitting} required type="text" defaultValue={user?.displayName || ''} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="Jane Doe" />
                 {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
               </div>
               <div className="grid gap-2">
@@ -481,25 +523,6 @@ export default function App() {
           </form>
         </section>
       </main>
-      
-      {showPreview && uploadedFile?.type === 'application/pdf' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6">
-          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border p-4">
-              <div className="flex items-center gap-2">
-                <FileText size={20} className="text-primary" />
-                <h3 className="font-semibold truncate">{uploadedFile.name}</h3>
-              </div>
-              <button onClick={() => setShowPreview(false)} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 bg-muted/30 p-4">
-              <iframe src={uploadedFile.url} className="h-full w-full rounded-lg border border-border bg-white" title="Resume Preview" />
-            </div>
-          </div>
-        </div>
-      )}
       
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6">
@@ -586,8 +609,32 @@ export default function App() {
         </div>
       )}
 
-      <footer className="border-t border-border bg-background py-8 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} Pratik Kumar Jena. All rights reserved.</p>
+      <footer className="border-t border-border bg-background py-10">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
+            <p className="text-sm text-muted-foreground">
+              &copy; {new Date().getFullYear()} Pratik Kumar Jena. All rights reserved.
+            </p>
+            <div className="flex items-center gap-4">
+              <a href="https://linkedin.com/in/pratikkumarjena" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="LinkedIn">
+                <Linkedin size={20} />
+                <span className="sr-only">LinkedIn</span>
+              </a>
+              <a href="https://github.com/pratikkumarjena" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="GitHub">
+                <Github size={20} />
+                <span className="sr-only">GitHub</span>
+              </a>
+              <a href="https://twitter.com/pratikkumarjena" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="Twitter">
+                <Twitter size={20} />
+                <span className="sr-only">Twitter</span>
+              </a>
+              <a href="https://wa.me/yourwhatsappnumber" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors" title="WhatsApp">
+                <MessageCircle size={20} />
+                <span className="sr-only">WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );
