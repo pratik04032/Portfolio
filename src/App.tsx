@@ -38,7 +38,24 @@ export default function App() {
   const [isScheduling, setIsScheduling] = useState(false);
   const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
   
+  const [githubProjects, setGithubProjects] = useState<any[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
   const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    fetch('https://api.github.com/users/pratik04032/repos?sort=updated&per_page=6')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+           // Filter out profile readme repo
+           const repos = data.filter(repo => repo.name !== 'pratik04032').slice(0, 3);
+           setGithubProjects(repos);
+        }
+      })
+      .catch(err => console.error("Error fetching projects", err))
+      .finally(() => setLoadingProjects(false));
+  }, []);
 
   useEffect(() => {
     if (isDark) {
@@ -400,49 +417,42 @@ export default function App() {
                 View all projects <ArrowRight size={16} />
               </a>
             </div>
-            <div className="grid gap-5 md:grid-cols-3">
-              {[
-                {
-                  title: 'Client Analytics Console',
-                  desc: 'A compact reporting interface for stakeholders who needed to compare trends, identify account risk, and export clean summaries without waiting on manual reports.',
-                  tags: ['Data Visualization', 'React', 'API Integration', 'Performance'],
-                  color: 'from-blue-500/20 to-cyan-500/20',
-                  icon: <Globe className="text-blue-500/50 transition-opacity group-hover:opacity-100" size={48} />
-                },
-                {
-                  title: 'Recruiter Portfolio Platform',
-                  desc: 'A fast professional portfolio that packages skills, project proof, resume downloads, contact options, and interview scheduling into a single hiring-manager flow.',
-                  tags: ['TanStack Start', 'Netlify', 'Tailwind CSS', 'Content Collections'],
-                  color: 'from-purple-500/20 to-pink-500/20',
-                  icon: <Code2 className="text-purple-500/50 transition-opacity group-hover:opacity-100" size={48} />
-                },
-                {
-                  title: 'Operations Task Manager',
-                  desc: 'A responsive planning workspace for teams that needed faster task triage, clearer ownership, and dependable status visibility across active workstreams.',
-                  tags: ['React', 'TypeScript', 'Workflow UX', 'Responsive UI'],
-                  color: 'from-emerald-500/20 to-teal-500/20',
-                  icon: <CheckCircle2 className="text-emerald-500/50 transition-opacity group-hover:opacity-100" size={48} />
-                }
-              ].map((project) => (
-                <article key={project.title} className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
-                  <div className={`h-40 w-full bg-gradient-to-br ${project.color} flex items-center justify-center border-b border-border`}>
-                    {project.icon}
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-xl font-semibold">{project.title}</h3>
-                    <p className="mt-3 min-h-24 text-sm leading-6 text-muted-foreground">{project.desc}</p>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      {project.tags.map((tag) => (
-                        <span key={tag} className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{tag}</span>
-                      ))}
-                    </div>
-                    <a href="#" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                      <Github size={16} /> Repository
-                    </a>
-                  </div>
-                </article>
-              ))}
-            </div>
+            {loadingProjects ? (
+              <div className="flex justify-center items-center py-20 w-full">
+                <Loader2 className="animate-spin text-primary" size={48} />
+              </div>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-3">
+                {githubProjects.map((project, index) => {
+                  const colors = [
+                    'from-blue-500/20 to-cyan-500/20',
+                    'from-purple-500/20 to-pink-500/20',
+                    'from-emerald-500/20 to-teal-500/20'
+                  ];
+                  return (
+                    <article key={project.name} className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
+                      <div className={`h-40 w-full bg-gradient-to-br ${colors[index % colors.length]} flex items-center justify-center border-b border-border`}>
+                        <Code2 className="text-foreground/50 transition-opacity group-hover:opacity-100" size={48} />
+                      </div>
+                      <div className="p-5 flex flex-col flex-grow">
+                        <h3 className="text-xl font-semibold break-words line-clamp-2" title={project.name.replace(/-/g, ' ')}>{project.name.replace(/-/g, ' ')}</h3>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground line-clamp-3" title={project.description || 'No description provided.'}>{project.description || 'No description provided.'}</p>
+                        <div className="mt-5 flex flex-wrap gap-2">
+                          {project.language && (
+                            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{project.language}</span>
+                          )}
+                        </div>
+                        <div className="mt-auto pt-5">
+                          <a href={project.html_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                            <Github size={16} /> Repository
+                          </a>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </section>
 
