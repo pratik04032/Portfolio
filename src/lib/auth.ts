@@ -6,8 +6,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/gmail.send');
 provider.addScope('https://www.googleapis.com/auth/drive.file');
+provider.addScope('https://www.googleapis.com/auth/calendar');
+provider.addScope('https://www.googleapis.com/auth/calendar.events');
+provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;

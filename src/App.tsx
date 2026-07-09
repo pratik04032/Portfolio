@@ -18,8 +18,8 @@ import {
   X
 } from 'lucide-react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './lib/auth';
-import { sendEmail } from './lib/gmail';
 import { uploadFileToDrive } from './lib/drive';
+import { createInterviewEvent, logInterviewToSheet } from './lib/schedule';
 import { User } from 'firebase/auth';
 
 export default function App() {
@@ -36,6 +36,10 @@ export default function App() {
   
   const [uploadedFile, setUploadedFile] = useState<{name: string, type: string, url: string} | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [scheduleSuccess, setScheduleSuccess] = useState<string | null>(null);
   
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,10 +100,6 @@ export default function App() {
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault(); 
-    if (!token) {
-      alert('Please sign in first to send a message.');
-      return;
-    }
     
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
@@ -121,19 +121,17 @@ export default function App() {
     setIsSubmitting(true);
     
     try {
-      await sendEmail(
-        token,
-        'pratikkumarjena04@gmail.com', // Recipient
-        name,
-        email,
-        message
-      );
-      alert('Message sent successfully!');
+      // Open default mail client
+      const subject = encodeURIComponent(`Portfolio Contact from ${name}`);
+      const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`);
+      window.location.href = `mailto:hello@example.com?subject=${subject}&body=${body}`;
+      
       if (formRef.current) formRef.current.reset();
       setMessageText('');
+      alert('Mail client opened to send your message!');
     } catch (error) {
       console.error(error);
-      alert('Failed to send message. Please try again later.');
+      alert('Failed to prepare message.');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,6 +161,57 @@ export default function App() {
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleScheduleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!token || !user?.email) {
+      alert('Please sign in first.');
+      return;
+    }
+    
+    setIsScheduling(true);
+    const formData = new FormData(e.currentTarget);
+    const title = formData.get('title') as string;
+    const date = formData.get('date') as string;
+    const time = formData.get('time') as string;
+    const durationStr = formData.get('duration') as string;
+    
+    try {
+      const startDateTimeStr = `${date}T${time}:00`;
+      const startDateTime = new Date(startDateTimeStr);
+      
+      const durationMatch = durationStr.match(/(\d+)/);
+      const durationMins = durationMatch ? parseInt(durationMatch[1]) : 30;
+      
+      const endDateTime = new Date(startDateTime.getTime() + durationMins * 60000);
+      
+      // 1. Create Calendar Event
+      const eventRes = await createInterviewEvent(
+        token,
+        `Interview: ${title}`,
+        startDateTime.toISOString(),
+        endDateTime.toISOString(),
+        'pratikkumarjena04@gmail.com' // Invite developer
+      );
+      
+      const meetLink = eventRes.hangoutLink || 'Meet link generation failed';
+      
+      // 2. Log to Google Sheet
+      await logInterviewToSheet(
+        token,
+        title,
+        `${date} ${time}`,
+        meetLink
+      );
+      
+      setScheduleSuccess(meetLink);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to schedule interview. Please try again.');
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -229,9 +278,9 @@ export default function App() {
                 I build reliable, polished web products that turn ambiguous ideas into shipped features. A product-minded developer focused on React, TypeScript, API design, and performance. I care about clean implementation, accessible interfaces, and measurable outcomes that hiring teams can trust in production.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <a href="https://calendly.com/your-name" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
+                <button onClick={() => setShowScheduleModal(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
                   <CalendarCheck size={18} /> Schedule an interview
-                </a>
+                </button>
                 
                 {needsAuth ? (
                   <button onClick={handleLogin} disabled={isLoggingIn} className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:bg-secondary">
@@ -273,8 +322,8 @@ export default function App() {
                 )}
               </div>
               <div className="mt-8 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:pratikkumarjena04.com">
-                  <Mail size={16} /> pratikkumarjena04@gmail.com
+                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:hello@example.com">
+                  <Mail size={16} /> Contact Me
                 </a>
                 <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="https://github.com/pratik04032">
                   <Github size={16} /> GitHub repositories
@@ -382,9 +431,9 @@ export default function App() {
           <h2 className="text-3xl font-semibold tracking-tight">Hiring managers can review the work, download the resume, and book time from one place.</h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">Use the interview link for availability, or send role details through the contact form below for a direct response.</p>
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row mb-12">
-            <a href="https://calendly.com/your-name" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90">
+            <button onClick={() => setShowScheduleModal(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90">
               <CalendarCheck size={18} /> Schedule an interview
-            </a>
+            </button>
           </div>
 
           <form 
@@ -395,12 +444,12 @@ export default function App() {
             <div className="grid gap-6">
               <div className="grid gap-2">
                 <label htmlFor="name" className="text-sm font-medium">Name</label>
-                <input id="name" name="name" disabled={isSubmitting || needsAuth} required type="text" className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="Jane Doe" />
+                <input id="name" name="name" disabled={isSubmitting} required type="text" className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="Jane Doe" />
                 {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
               </div>
               <div className="grid gap-2">
                 <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <input id="email" name="email" disabled={isSubmitting || needsAuth} required type="email" defaultValue={user?.email || ''} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="jane@example.com" />
+                <input id="email" name="email" disabled={isSubmitting} required type="email" defaultValue={user?.email || ''} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="jane@example.com" />
                 {formErrors.email && <p className="text-xs text-red-500">{formErrors.email}</p>}
               </div>
               <div className="grid gap-2">
@@ -410,48 +459,24 @@ export default function App() {
                     {messageText.length} / 1000
                   </span>
                 </div>
-                <textarea id="message" name="message" value={messageText} onChange={(e) => setMessageText(e.target.value)} disabled={isSubmitting || needsAuth} required rows={4} maxLength={1000} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50 ${formErrors.message ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="How can I help you?"></textarea>
+                <textarea id="message" name="message" value={messageText} onChange={(e) => setMessageText(e.target.value)} disabled={isSubmitting} required rows={4} maxLength={1000} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50 ${formErrors.message ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="How can I help you?"></textarea>
                 {formErrors.message && <p className="text-xs text-red-500">{formErrors.message}</p>}
               </div>
-              {needsAuth ? (
-                <button type="button" onClick={handleLogin} disabled={isLoggingIn} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary border border-border text-foreground px-5 py-3 font-semibold transition hover:bg-secondary/80 mt-2 disabled:opacity-50">
-                  {isLoggingIn ? (
-                    <><Loader2 size={18} className="animate-spin" /> Connecting...</>
+              
+              <div className="mt-2 flex flex-col gap-3">
+                <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Preparing...
+                    </>
                   ) : (
                     <>
-                      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
-                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
-                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
-                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
-                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
-                        <path fill="none" d="M0 0h48v48H0z"></path>
-                      </svg>
-                      Sign in to Send
+                      Send Message <ArrowRight size={18} />
                     </>
                   )}
                 </button>
-              ) : (
-                <div className="mt-2 flex flex-col gap-3">
-                  <button type="submit" disabled={isSubmitting} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 size={18} className="animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        Send Message <ArrowRight size={18} />
-                      </>
-                    )}
-                  </button>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
-                    <span>Sending as: <span className="font-medium text-foreground">{user?.email}</span></span>
-                    <button type="button" onClick={handleLogout} className="inline-flex items-center gap-1 hover:text-foreground">
-                      <LogOut size={12} /> Sign out
-                    </button>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </form>
         </section>
@@ -471,6 +496,91 @@ export default function App() {
             </div>
             <div className="flex-1 bg-muted/30 p-4">
               <iframe src={uploadedFile.url} className="h-full w-full rounded-lg border border-border bg-white" title="Resume Preview" />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <div className="flex items-center gap-2">
+                <CalendarCheck size={20} className="text-primary" />
+                <h3 className="font-semibold">Schedule an Interview</h3>
+              </div>
+              <button onClick={() => setShowScheduleModal(false)} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 sm:p-6">
+              {scheduleSuccess ? (
+                <div className="text-center">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 mb-4">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <h4 className="text-lg font-semibold mb-2">Interview Scheduled!</h4>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    A calendar invitation has been sent and the interview has been logged.
+                  </p>
+                  <a 
+                    href={scheduleSuccess} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90"
+                  >
+                    Join Google Meet <ArrowRight size={16} />
+                  </a>
+                  <button 
+                    onClick={() => { setShowScheduleModal(false); setScheduleSuccess(null); }} 
+                    className="mt-3 inline-block w-full text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleScheduleSubmit} className="grid gap-4">
+                  <div className="grid gap-2">
+                    <label htmlFor="title" className="text-sm font-medium">Interview Title / Role</label>
+                    <input id="title" name="title" required type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g. Frontend Engineer Interview" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="date" className="text-sm font-medium">Date</label>
+                      <input id="date" name="date" required type="date" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" min={new Date().toISOString().split('T')[0]} />
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="time" className="text-sm font-medium">Time</label>
+                      <input id="time" name="time" required type="time" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <label htmlFor="duration" className="text-sm font-medium">Duration</label>
+                    <select id="duration" name="duration" required className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <option value="30">30 minutes</option>
+                      <option value="45">45 minutes</option>
+                      <option value="60">60 minutes</option>
+                    </select>
+                  </div>
+                  
+                  <div className="mt-4 border-t border-border pt-4">
+                    {needsAuth ? (
+                      <button type="button" onClick={handleLogin} disabled={isLoggingIn} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary border border-border text-foreground px-4 py-2 font-semibold transition hover:bg-secondary/80 disabled:opacity-50">
+                        {isLoggingIn ? <><Loader2 size={16} className="animate-spin" /> Connecting...</> : 'Sign in to Schedule'}
+                      </button>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        <button type="submit" disabled={isScheduling} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50">
+                          {isScheduling ? <><Loader2 size={16} className="animate-spin" /> Scheduling...</> : 'Schedule & Generate Meet Link'}
+                        </button>
+                        <p className="text-center text-xs text-muted-foreground">
+                          Scheduling as {user?.email}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
           </div>
         </div>
