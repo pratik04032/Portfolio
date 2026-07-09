@@ -17,7 +17,9 @@ import {
   Twitter,
   MessageCircle,
   Award,
-  ExternalLink
+  ExternalLink,
+  Copy,
+  Check
 } from 'lucide-react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './lib/auth';
 import { createInterviewEvent, logInterviewToSheet } from './lib/schedule';
@@ -41,16 +43,37 @@ export default function App() {
   
   const [githubProjects, setGithubProjects] = useState<any[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectFilter, setProjectFilter] = useState<string>('All');
+  
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText('pratikkumarjena04@gmail.com');
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  };
+
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalScroll = document.documentElement.scrollTop;
+      const windowHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      if (windowHeight > 0) {
+        setScrollProgress((totalScroll / windowHeight) * 100);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    fetch('https://api.github.com/users/pratik04032/repos?sort=updated&per_page=6')
+    fetch('https://api.github.com/users/pratik04032/repos?sort=updated&per_page=12')
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
-           // Filter out profile readme repo
-           const repos = data.filter(repo => repo.name !== 'pratik04032').slice(0, 3);
+           const repos = data.filter(repo => repo.name !== 'pratik04032').slice(0, 6);
            setGithubProjects(repos);
         }
       })
@@ -210,6 +233,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
+      <div 
+        className="fixed top-0 left-0 h-1 bg-primary z-50 transition-all duration-150 ease-out" 
+        style={{ width: `${scrollProgress}%` }}
+      />
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/88 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <a className="flex items-center gap-3 font-semibold active" href="/" aria-current="page">
@@ -282,9 +309,17 @@ export default function App() {
                 </button>
               </div>
               <div className="mt-8 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:hello@example.com">
+                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:pratikkumarjena04@gmail.com">
                   <Mail size={16} /> Contact Me
                 </a>
+                <button 
+                  onClick={handleCopyEmail}
+                  className="inline-flex items-center gap-2 hover:text-foreground transition-colors"
+                  aria-label="Copy email address"
+                >
+                  {copiedEmail ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                  {copiedEmail ? 'Copied!' : 'Copy Email'}
+                </button>
                 <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="https://github.com/pratik04032">
                   <Github size={16} /> GitHub repositories
                 </a>
@@ -414,9 +449,23 @@ export default function App() {
                 <p className="text-sm font-semibold uppercase tracking-[.18em] text-primary">Selected Work</p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight">Projects framed around outcomes.</h2>
               </div>
-              <a href="#projects" className="inline-flex items-center gap-2 font-semibold text-primary hover:underline">
-                View all projects <ArrowRight size={16} />
-              </a>
+              {!loadingProjects && githubProjects.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {['All', ...new Set(githubProjects.map(p => p.language).filter(Boolean))].map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => setProjectFilter(lang)}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                        projectFilter === lang 
+                          ? 'bg-primary text-primary-foreground' 
+                          : 'bg-background border border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {loadingProjects ? (
               <div className="flex justify-center items-center py-20 w-full">
@@ -424,7 +473,9 @@ export default function App() {
               </div>
             ) : (
               <div className="grid gap-5 md:grid-cols-3">
-                {githubProjects.map((project, index) => {
+                {githubProjects
+                  .filter(project => projectFilter === 'All' || project.language === projectFilter)
+                  .map((project, index) => {
                   const colors = [
                     'from-blue-500/20 to-cyan-500/20',
                     'from-purple-500/20 to-pink-500/20',
