@@ -25,6 +25,8 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
+  const [messageText, setMessageText] = useState('');
+  
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -64,8 +66,11 @@ export default function App() {
         setUser(result.user);
         setNeedsAuth(false);
       }
-    } catch (err) {
-      console.error('Login failed:', err);
+    } catch (err: any) {
+      if (err.code !== 'auth/popup-closed-by-user' && err.code !== 'auth/cancelled-popup-request') {
+        console.error('Login failed:', err);
+        alert('Failed to sign in. Please try again.');
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -101,6 +106,7 @@ export default function App() {
       );
       alert('Message sent successfully!');
       if (formRef.current) formRef.current.reset();
+      setMessageText('');
     } catch (error) {
       console.error(error);
       alert('Failed to send message. Please try again later.');
@@ -118,7 +124,7 @@ export default function App() {
               <Code2 size={24} />
             </span>
             <span>
-              <span className="block leading-tight">Your Name</span>
+              <span className="block leading-tight">Pratik Kumar Jena</span>
               <span className="block text-xs font-medium text-muted-foreground">Full-Stack Developer</span>
             </span>
           </a>
@@ -180,8 +186,8 @@ export default function App() {
                 </a>
               </div>
               <div className="mt-8 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:hello@example.com">
-                  <Mail size={16} /> hello@example.com
+                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:pratikkumarjena04.com">
+                  <Mail size={16} /> pratikkumarjena04@gmail.com
                 </a>
                 <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="https://github.com/your-username">
                   <Github size={16} /> GitHub repositories
@@ -298,8 +304,13 @@ export default function App() {
                 <input id="email" name="email" disabled={isSubmitting || needsAuth} required type="email" defaultValue={user?.email || ''} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="jane@example.com" />
               </div>
               <div className="grid gap-2">
-                <label htmlFor="message" className="text-sm font-medium">Message</label>
-                <textarea id="message" name="message" disabled={isSubmitting || needsAuth} required rows={4} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50" placeholder="How can I help you?"></textarea>
+                <div className="flex items-center justify-between">
+                  <label htmlFor="message" className="text-sm font-medium">Message</label>
+                  <span className={`text-xs ${messageText.length > 1000 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {messageText.length} / 1000
+                  </span>
+                </div>
+                <textarea id="message" name="message" value={messageText} onChange={(e) => setMessageText(e.target.value)} disabled={isSubmitting || needsAuth} required rows={4} maxLength={1000} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50" placeholder="How can I help you?"></textarea>
               </div>
               {needsAuth ? (
                 <button type="button" onClick={handleLogin} disabled={isLoggingIn} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary border border-border text-foreground px-5 py-3 font-semibold transition hover:bg-secondary/80 mt-2 disabled:opacity-50">
