@@ -11,10 +11,15 @@ import {
   CheckCircle2,
   ArrowRight,
   Loader2,
-  LogOut
+  LogOut,
+  Upload,
+  FileText,
+  Eye,
+  X
 } from 'lucide-react';
 import { initAuth, googleSignIn, getAccessToken, logout } from './lib/auth';
 import { sendEmail } from './lib/gmail';
+import { uploadFileToDrive } from './lib/drive';
 import { User } from 'firebase/auth';
 
 export default function App() {
@@ -26,8 +31,14 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
   const [messageText, setMessageText] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [formErrors, setFormErrors] = useState<{name?: string, email?: string, message?: string}>({});
+  
+  const [uploadedFile, setUploadedFile] = useState<{name: string, type: string, url: string} | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   
   const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isDark) {
@@ -90,11 +101,24 @@ export default function App() {
       return;
     }
     
-    setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
     const message = formData.get('message') as string;
+
+    const errors: {name?: string, email?: string, message?: string} = {};
+    if (!name.trim()) errors.name = 'Name is required';
+    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email)) errors.email = 'Valid email is required';
+    if (!message.trim()) errors.message = 'Message is required';
+    if (message.length > 1000) errors.message = 'Message must be less than 1000 characters';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    setFormErrors({});
+    setIsSubmitting(true);
     
     try {
       await sendEmail(
@@ -115,10 +139,37 @@ export default function App() {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!token) {
+      alert('Please sign in first to upload a resume.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await uploadFileToDrive(token, file);
+      alert('Resume uploaded successfully to Google Drive!');
+      setUploadedFile({
+        name: file.name,
+        type: file.type,
+        url: URL.createObjectURL(file)
+      });
+    } catch (error) {
+      console.error(error);
+      alert('Failed to upload resume. Please try again later.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-200">
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/88 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <a className="flex items-center gap-3 font-semibold active" href="/" aria-current="page">
             <span className="grid size-10 place-items-center rounded-md bg-primary text-primary-foreground">
               <Code2 size={24} />
@@ -128,7 +179,7 @@ export default function App() {
               <span className="block text-xs font-medium text-muted-foreground">Full-Stack Developer</span>
             </span>
           </a>
-          <nav className="flex flex-wrap items-center gap-2">
+          <nav className="flex flex-wrap items-center justify-end gap-2 ml-auto">
             <a className="rounded-md px-3 py-2 text-sm font-medium text-foreground bg-secondary transition hover:bg-secondary hover:text-foreground" href="/">
               Overview
             </a>
@@ -181,15 +232,51 @@ export default function App() {
                 <a href="https://calendly.com/your-name" className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
                   <CalendarCheck size={18} /> Schedule an interview
                 </a>
-                <a href="#resume" className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:bg-secondary">
-                  <Download size={18} /> Download resume
-                </a>
+                
+                {needsAuth ? (
+                  <button onClick={handleLogin} disabled={isLoggingIn} className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:bg-secondary">
+                    {isLoggingIn ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                    Sign in to Upload Resume
+                  </button>
+                ) : (
+                  <>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileUpload} 
+                      className="hidden" 
+                      accept=".pdf,.doc,.docx"
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()} 
+                      disabled={isUploading}
+                      className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-5 py-3 font-semibold transition hover:bg-secondary disabled:opacity-50"
+                    >
+                      {isUploading ? (
+                        <><Loader2 size={18} className="animate-spin" /> Uploading...</>
+                      ) : (
+                        <><Upload size={18} /> Upload Resume to Drive</>
+                      )}
+                    </button>
+                    {uploadedFile && (
+                      <div className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
+                        <FileText size={16} className="text-primary" />
+                        <span className="max-w-[150px] truncate font-medium" title={uploadedFile.name}>{uploadedFile.name}</span>
+                        {uploadedFile.type === 'application/pdf' && (
+                          <button onClick={() => setShowPreview(true)} className="ml-2 inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" title="Preview Resume">
+                            <Eye size={16} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
               <div className="mt-8 flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="mailto:pratikkumarjena04.com">
                   <Mail size={16} /> pratikkumarjena04@gmail.com
                 </a>
-                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="https://github.com/your-username">
+                <a className="inline-flex items-center gap-2 hover:text-foreground transition-colors" href="https://github.com/pratik04032">
                   <Github size={16} /> GitHub repositories
                 </a>
                 <span className="inline-flex items-center gap-2">
@@ -250,30 +337,41 @@ export default function App() {
                 {
                   title: 'Client Analytics Console',
                   desc: 'A compact reporting interface for stakeholders who needed to compare trends, identify account risk, and export clean summaries without waiting on manual reports.',
-                  tags: ['Data Visualization', 'React', 'API Integration', 'Performance']
+                  tags: ['Data Visualization', 'React', 'API Integration', 'Performance'],
+                  color: 'from-blue-500/20 to-cyan-500/20',
+                  icon: <Globe className="text-blue-500/50 transition-opacity group-hover:opacity-100" size={48} />
                 },
                 {
                   title: 'Recruiter Portfolio Platform',
                   desc: 'A fast professional portfolio that packages skills, project proof, resume downloads, contact options, and interview scheduling into a single hiring-manager flow.',
-                  tags: ['TanStack Start', 'Netlify', 'Tailwind CSS', 'Content Collections']
+                  tags: ['TanStack Start', 'Netlify', 'Tailwind CSS', 'Content Collections'],
+                  color: 'from-purple-500/20 to-pink-500/20',
+                  icon: <Code2 className="text-purple-500/50 transition-opacity group-hover:opacity-100" size={48} />
                 },
                 {
                   title: 'Operations Task Manager',
                   desc: 'A responsive planning workspace for teams that needed faster task triage, clearer ownership, and dependable status visibility across active workstreams.',
-                  tags: ['React', 'TypeScript', 'Workflow UX', 'Responsive UI']
+                  tags: ['React', 'TypeScript', 'Workflow UX', 'Responsive UI'],
+                  color: 'from-emerald-500/20 to-teal-500/20',
+                  icon: <CheckCircle2 className="text-emerald-500/50 transition-opacity group-hover:opacity-100" size={48} />
                 }
               ].map((project) => (
-                <article key={project.title} className="rounded-lg border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
-                  <h3 className="text-xl font-semibold">{project.title}</h3>
-                  <p className="mt-3 min-h-24 text-sm leading-6 text-muted-foreground">{project.desc}</p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {project.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{tag}</span>
-                    ))}
+                <article key={project.title} className="group overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
+                  <div className={`h-40 w-full bg-gradient-to-br ${project.color} flex items-center justify-center border-b border-border`}>
+                    {project.icon}
                   </div>
-                  <a href="#" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-                    <Github size={16} /> Repository
-                  </a>
+                  <div className="p-5">
+                    <h3 className="text-xl font-semibold">{project.title}</h3>
+                    <p className="mt-3 min-h-24 text-sm leading-6 text-muted-foreground">{project.desc}</p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {project.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">{tag}</span>
+                      ))}
+                    </div>
+                    <a href="#" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+                      <Github size={16} /> Repository
+                    </a>
+                  </div>
                 </article>
               ))}
             </div>
@@ -297,20 +395,23 @@ export default function App() {
             <div className="grid gap-6">
               <div className="grid gap-2">
                 <label htmlFor="name" className="text-sm font-medium">Name</label>
-                <input id="name" name="name" disabled={isSubmitting || needsAuth} required type="text" className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="Jane Doe" />
+                <input id="name" name="name" disabled={isSubmitting || needsAuth} required type="text" className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="Jane Doe" />
+                {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
               </div>
               <div className="grid gap-2">
                 <label htmlFor="email" className="text-sm font-medium">Email</label>
-                <input id="email" name="email" disabled={isSubmitting || needsAuth} required type="email" defaultValue={user?.email || ''} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50" placeholder="jane@example.com" />
+                <input id="email" name="email" disabled={isSubmitting || needsAuth} required type="email" defaultValue={user?.email || ''} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="jane@example.com" />
+                {formErrors.email && <p className="text-xs text-red-500">{formErrors.email}</p>}
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center justify-between">
                   <label htmlFor="message" className="text-sm font-medium">Message</label>
-                  <span className={`text-xs ${messageText.length > 1000 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  <span className={`text-xs ${messageText.length > 1000 || formErrors.message ? 'text-red-500' : 'text-muted-foreground'}`}>
                     {messageText.length} / 1000
                   </span>
                 </div>
-                <textarea id="message" name="message" value={messageText} onChange={(e) => setMessageText(e.target.value)} disabled={isSubmitting || needsAuth} required rows={4} maxLength={1000} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50" placeholder="How can I help you?"></textarea>
+                <textarea id="message" name="message" value={messageText} onChange={(e) => setMessageText(e.target.value)} disabled={isSubmitting || needsAuth} required rows={4} maxLength={1000} className={`w-full rounded-md border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none disabled:opacity-50 ${formErrors.message ? 'border-red-500 focus:ring-red-500' : 'border-border'}`} placeholder="How can I help you?"></textarea>
+                {formErrors.message && <p className="text-xs text-red-500">{formErrors.message}</p>}
               </div>
               {needsAuth ? (
                 <button type="button" onClick={handleLogin} disabled={isLoggingIn} className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-secondary border border-border text-foreground px-5 py-3 font-semibold transition hover:bg-secondary/80 mt-2 disabled:opacity-50">
@@ -356,6 +457,25 @@ export default function App() {
         </section>
       </main>
       
+      {showPreview && uploadedFile?.type === 'application/pdf' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6">
+          <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <div className="flex items-center gap-2">
+                <FileText size={20} className="text-primary" />
+                <h3 className="font-semibold truncate">{uploadedFile.name}</h3>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 bg-muted/30 p-4">
+              <iframe src={uploadedFile.url} className="h-full w-full rounded-lg border border-border bg-white" title="Resume Preview" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="border-t border-border bg-background py-8 text-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} Pratik Kumar Jena. All rights reserved.</p>
       </footer>
