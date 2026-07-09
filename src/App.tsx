@@ -324,14 +324,14 @@ export default function App() {
                 <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background ring-4 ring-background"></div>
                 <div className="absolute bottom-[-3rem] left-[5px] top-6 w-[2px] bg-border"></div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
-                  <h3 className="text-xl font-semibold">Senior Frontend Developer</h3>
-                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">2022 - Present</span>
+                  <h3 className="text-xl font-semibold">Data Analyst (Internship)</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">Apr 2026 - May 2026</span>
                 </div>
-                <p className="text-lg font-medium text-foreground/80 mb-4">Tech Innovators Inc.</p>
+                <p className="text-lg font-medium text-foreground/80 mb-4">Bluestock.in</p>
                 <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
-                  <li>Led the frontend development of a high-traffic SaaS platform using React and TypeScript.</li>
-                  <li>Improved application performance by 40% through code splitting and lazy loading.</li>
-                  <li>Mentored junior developers and established code review best practices.</li>
+                  <li>Performed exploratory data analysis (EDA) on investment datasets; identified 5+ actionable business insights improving decision-making.</li>
+                  <li>Developed SQL queries for data extraction and aggregation; optimized query performance by 35% through indexing and execution plan analysis.</li>
+                  <li>Created interactive dashboards and reports to track KPIs; improved data accessibility for 20+ stakeholders.</li>
                 </ul>
               </div>
               
@@ -339,27 +339,42 @@ export default function App() {
                 <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background ring-4 ring-background"></div>
                 <div className="absolute bottom-[-3rem] left-[5px] top-6 w-[2px] bg-border"></div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
-                  <h3 className="text-xl font-semibold">Web Developer</h3>
-                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">2019 - 2022</span>
+                  <h3 className="text-xl font-semibold">Power BI Developer & Data Analyst (Internship)</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">Jun 2025 - Aug 2025</span>
                 </div>
-                <p className="text-lg font-medium text-foreground/80 mb-4">Creative Solutions Agency</p>
+                <p className="text-lg font-medium text-foreground/80 mb-4">Cognifyz Technologies</p>
                 <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
-                  <li>Developed responsive and accessible websites for diverse clients.</li>
-                  <li>Integrated various third-party APIs and payment gateways.</li>
-                  <li>Collaborated closely with designers to ensure pixel-perfect implementations.</li>
+                  <li>Designed and developed 5+ Power BI dashboards with advanced visualizations and interactive filters.</li>
+                  <li>Performed ETL operations for data integration from multiple sources; designed normalized data models.</li>
+                  <li>Analyzed investment duration, frequency, and decision factors using aggregations and DAX calculations; uncovered 8+ actionable insights.</li>
+                </ul>
+              </div>
+
+              <div className="relative pl-8 sm:pl-10">
+                <div className="absolute left-0 top-1.5 h-3 w-3 rounded-full border-2 border-primary bg-background ring-4 ring-background"></div>
+                <div className="absolute bottom-[-3rem] left-[5px] top-6 w-[2px] bg-border"></div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
+                  <h3 className="text-xl font-semibold">Frontend Developer (Internship)</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">Aug 2024 - Sep 2024</span>
+                </div>
+                <p className="text-lg font-medium text-foreground/80 mb-4">Cognifyz Technologies</p>
+                <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
+                  <li>Developed 3+ responsive web applications using HTML5, CSS3, and vanilla JavaScript with modern UI/UX principles.</li>
+                  <li>Implemented dynamic client-side features using DOM manipulation; improved user engagement metrics by 25%.</li>
+                  <li>Integrated RESTful APIs for real-time data fetching and display; optimized API response handling by 30%.</li>
                 </ul>
               </div>
               
               <div className="relative pl-8 sm:pl-10">
                 <div className="absolute left-[2px] top-2 h-2 w-2 rounded-full border-2 border-muted-foreground bg-background ring-4 ring-background"></div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
-                  <h3 className="text-xl font-semibold text-muted-foreground">Junior Developer</h3>
-                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">2018 - 2019</span>
+                  <h3 className="text-xl font-semibold text-muted-foreground">Backend/Systems Developer (C/C++)</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-secondary px-3 py-1 rounded-full w-fit">Jan 2024 - Feb 2024</span>
                 </div>
-                <p className="text-lg font-medium text-foreground/60 mb-4">Startup Labs</p>
+                <p className="text-lg font-medium text-foreground/60 mb-4">Cognifyz Technologies</p>
                 <ul className="list-disc space-y-2 pl-4 text-muted-foreground">
-                  <li>Assisted in building internal tools and dashboards.</li>
-                  <li>Participated in daily stand-ups and sprint planning.</li>
+                  <li>Developed console-based applications using C/C++ following SOLID principles and design patterns.</li>
+                  <li>Built file handling systems for data processing; implemented efficient I/O operations reducing memory footprint by 20%.</li>
                 </ul>
               </div>
             </div>
